@@ -145,8 +145,9 @@ body {
 }
 
 /* Dark mode: Dim surrounding text, brighten time */
-[data-theme="dark"] .quote-text {
-    color: #c0c0c0;
+[data-theme="dark"] #quote-first,
+[data-theme="dark"] #quote-last {
+    opacity: 0.65;
 }
 
 [data-theme="dark"] .quote-text strong {
@@ -154,8 +155,9 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .quote-text {
-        color: #c0c0c0;
+    :root:not([data-theme="light"]) #quote-first,
+    :root:not([data-theme="light"]) #quote-last {
+        opacity: 0.65;
     }
     :root:not([data-theme="light"]) .quote-text strong {
         color: #fff;
