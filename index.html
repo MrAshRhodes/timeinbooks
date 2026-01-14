@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Literary Quote Clock</title>
+    <meta name="description" content="A clock that tells time through literary quotes">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="page-turn-overlay"></div>
+    <div class="container">
+        <header class="controls">
+            <button id="theme-toggle" class="icon-btn" aria-label="Toggle dark/light mode">
+                <span class="icon-sun">&#9788;</span>
+                <span class="icon-moon">&#9790;</span>
+            </button>
+            <button id="settings-toggle" class="icon-btn" aria-label="Settings">
+                &#9881;
+            </button>
+        </header>
+
+        <main class="quote-container">
+            <blockquote id="quote-text" class="quote-text">
+                <span id="quote-first"></span><strong id="quote-time"></strong><span id="quote-last"></span>
+            </blockquote>
+            <cite class="attribution">
+                <span class="author" id="author"></span>
+                <span class="title" id="title"></span>
+            </cite>
+        </main>
+
+        <aside id="settings-panel" class="settings-panel" hidden>
+            <div class="settings-content">
+                <h2>Settings</h2>
+                <div class="setting-row">
+                    <label for="animation-toggle">Page animation</label>
+                    <input type="checkbox" id="animation-toggle" checked>
+                </div>
+                <div class="setting-row">
+                    <label for="format-toggle">24-hour format</label>
+                    <input type="checkbox" id="format-toggle" checked>
+                </div>
+                <label for="timezone-select">Timezone</label>
+                <select id="timezone-select"></select>
+                <p class="current-time">
+                    <span id="digital-time"></span>
+                </p>
+            </div>
+        </aside>
+
+        <footer class="footer">
+            <p>Quotes from <a href="https://github.com/JohannesNE/literature-clock" target="_blank" rel="noopener">literature-clock</a></p>
+        </footer>
+    </div>
+
+    <script src="quotes.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

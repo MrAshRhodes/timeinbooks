@@ -1,0 +1,340 @@
+/* Literary Quote Clock - Styles */
+
+:root {
+    /* Light mode (default) - paper-like warmth */
+    --bg-color: #f4f1ea;
+    --text-color: #3d3630;
+    --text-muted: #7a746b;
+    --accent-color: #2c2520;
+    --border-color: #d9d4c9;
+    --panel-bg: #faf7f2;
+}
+
+[data-theme="dark"] {
+    --bg-color: #1a1a1a;
+    --text-color: #e8e8e8;
+    --text-muted: #999;
+    --accent-color: #f5f5f5;
+    --border-color: #333;
+    --panel-bg: #242424;
+}
+
+/* Respect system preference */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg-color: #1a1a1a;
+        --text-color: #e8e8e8;
+        --text-muted: #999;
+        --accent-color: #f5f5f5;
+        --border-color: #333;
+        --panel-bg: #242424;
+    }
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+}
+
+body {
+    font-family: Georgia, 'Times New Roman', serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* Header Controls */
+.controls {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding-bottom: 1rem;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: color 0.2s ease, background-color 0.2s ease;
+    line-height: 1;
+}
+
+.icon-btn:hover {
+    color: var(--text-color);
+    background-color: var(--border-color);
+}
+
+/* Theme toggle icons */
+.icon-sun,
+.icon-moon {
+    display: none;
+}
+
+:root:not([data-theme="dark"]) .icon-moon,
+[data-theme="light"] .icon-moon {
+    display: inline;
+}
+
+[data-theme="dark"] .icon-sun {
+    display: inline;
+}
+
+[data-theme="dark"] .icon-moon {
+    display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .icon-sun {
+        display: inline;
+    }
+    :root:not([data-theme="light"]) .icon-moon {
+        display: none;
+    }
+}
+
+/* Quote Container */
+.quote-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.quote-text {
+    font-size: clamp(1.25rem, 4vw, 2rem);
+    line-height: 1.6;
+    max-width: 40ch;
+    margin-bottom: 2rem;
+    font-style: italic;
+    font-weight: 300;
+}
+
+.quote-text::before {
+    content: '"';
+}
+
+.quote-text::after {
+    content: '"';
+}
+
+.quote-text strong {
+    font-style: normal;
+    font-weight: 900;
+}
+
+/* Dark mode: Dim surrounding text, brighten time */
+[data-theme="dark"] .quote-text {
+    color: #c0c0c0;
+}
+
+[data-theme="dark"] .quote-text strong {
+    color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .quote-text {
+        color: #c0c0c0;
+    }
+    :root:not([data-theme="light"]) .quote-text strong {
+        color: #fff;
+    }
+}
+
+.attribution {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-style: normal;
+}
+
+.author {
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
+.author::before {
+    content: '— ';
+}
+
+.title {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Settings Panel */
+.settings-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 320px;
+    background-color: var(--panel-bg);
+    border-left: 1px solid var(--border-color);
+    padding: 2rem;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    z-index: 100;
+}
+
+.settings-panel[hidden] {
+    display: block;
+}
+
+.settings-panel.open {
+    transform: translateX(0);
+}
+
+.settings-content h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+    font-weight: normal;
+}
+
+.settings-content label {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.settings-content select {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    font-family: inherit;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+.current-time {
+    margin-top: 1.5rem;
+    font-size: 2rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-family: system-ui, sans-serif;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding: 1rem 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.footer a {
+    color: var(--text-muted);
+    text-decoration: underline;
+}
+
+.footer a:hover {
+    color: var(--text-color);
+}
+
+/* Overlay for settings panel */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 99;
+}
+
+.overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Loading state */
+.loading .quote-text,
+.loading .attribution {
+    opacity: 0.5;
+}
+
+/* Page Turn Animation */
+.page-turn-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: var(--bg-color);
+    transform-origin: bottom left;
+    z-index: 200;
+    pointer-events: none;
+}
+
+.page-turn-overlay.animate {
+    animation: pageTurn 0.8s ease-out forwards;
+}
+
+@keyframes pageTurn {
+    0% {
+        transform: rotateY(0deg) rotateZ(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: rotateY(-90deg) rotateZ(-15deg);
+        opacity: 0;
+    }
+}
+
+.page-turn-overlay.hidden {
+    display: none;
+}
+
+/* Settings Row */
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.setting-row input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+    accent-color: var(--accent-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .quote-text {
+        font-size: clamp(1.1rem, 5vw, 1.5rem);
+    }
+
+    .settings-panel {
+        max-width: 100%;
+    }
+}
