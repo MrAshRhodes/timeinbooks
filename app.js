@@ -217,10 +217,21 @@
         return text.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, '');
     }
 
+    function getFormattedTime() {
+        const now = new Date();
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: !use24Hour,
+            timeZone: currentTimezone
+        });
+        return formatter.format(now);
+    }
+
     function renderQuote(quote) {
         if (!quote) {
-            quoteFirst.textContent = 'No quote available for this moment';
-            quoteTime.textContent = '';
+            quoteFirst.textContent = 'No quote available for ';
+            quoteTime.textContent = getFormattedTime();
             quoteLast.textContent = '';
             authorEl.textContent = '';
             titleEl.textContent = '';
