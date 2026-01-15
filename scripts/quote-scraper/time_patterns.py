@@ -84,7 +84,7 @@ class TimePatternMatcher:
 
     # Pattern: O'clock (e.g., "seven o'clock", "7 o'clock")
     OCLOCK_PATTERN = re.compile(
-        r'\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d{1,2})\s+o[\'']?clock\b',
+        r"\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d{1,2})\s+o['\u2019]?clock\b",
         re.IGNORECASE
     )
 

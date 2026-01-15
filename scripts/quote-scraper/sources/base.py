@@ -32,8 +32,8 @@ class BaseSource(ABC):
         """Yield documents to process."""
         pass
 
-    def extract_quotes(self, doc: SourceDocument) -> List[Quote]:
-        """Extract quotes from a document."""
+    def extract_quotes(self, doc: SourceDocument) -> List[tuple]:
+        """Extract quotes from a document. Returns list of (time_key, Quote) tuples."""
         quotes = []
         matches = find_times(doc.text)
 
@@ -42,7 +42,7 @@ class BaseSource(ABC):
             if quote:
                 quote.title = doc.title
                 quote.author = doc.author
-                quotes.append(quote)
+                quotes.append((match.time_24h, quote))
 
         return quotes
 
@@ -58,18 +58,10 @@ class BaseSource(ABC):
             total_docs += 1
             print(f"[{self.name}] Processing: {doc.title[:50]}...")
 
-            quotes = self.extract_quotes(doc)
-            total_quotes += len(quotes)
+            quote_tuples = self.extract_quotes(doc)
+            total_quotes += len(quote_tuples)
 
-            for quote in quotes:
-                time_key = None
-                # Find the time key from the original match
-                matches = find_times(
-                    quote.quote_first + quote.quote_time_case + quote.quote_last
-                )
-                if matches:
-                    time_key = matches[0].time_24h
-
+            for time_key, quote in quote_tuples:
                 if time_key:
                     if time_key not in quotes_by_time:
                         quotes_by_time[time_key] = []
