@@ -14,3 +14,11 @@ Thumbs.db
 # Build artifacts
 dist/
 build/
+
+# Python files
+*.pyc
+__pycache__/
+
+# Python virtual environment
+venv/
+.venv

@@ -16,8 +16,8 @@
     const digitalTime = document.getElementById('digital-time');
     const container = document.querySelector('.container');
     const animationToggle = document.getElementById('animation-toggle');
-    const pageOverlay = document.querySelector('.page-turn-overlay');
     const formatToggle = document.getElementById('format-toggle');
+    const loader = document.querySelector('.loader');
 
     // State
     let currentTimezone = null;
@@ -63,20 +63,37 @@
         localStorage.setItem('quote-clock-theme', newTheme);
     }
 
-    // Page Animation
+    // Page Animation using GSAP
     function initAnimation() {
         const animationEnabled = localStorage.getItem('quote-clock-animation') !== 'false';
         animationToggle.checked = animationEnabled;
+        // Loader tiles start collapsed (width: 0 via CSS), no setup needed
+    }
 
-        if (animationEnabled) {
-            pageOverlay.classList.add('animate');
-            // Remove overlay after animation completes
+    function isAnimationEnabled() {
+        return localStorage.getItem('quote-clock-animation') !== 'false';
+    }
+
+    function playPageTurn(onCovered, onComplete) {
+        // Activate loader - tiles expand from left with stagger
+        loader.classList.add('loader--active');
+
+        // Wait for tiles to fully cover screen (~2s)
+        setTimeout(() => {
+            // Content is now covered - update it
+            if (onCovered) onCovered();
+
+            // Brief pause while covered, then collapse
             setTimeout(() => {
-                pageOverlay.classList.add('hidden');
-            }, 800);
-        } else {
-            pageOverlay.classList.add('hidden');
-        }
+                // Remove active class - tiles collapse with stagger
+                loader.classList.remove('loader--active');
+
+                // Wait for tiles to fully collapse (~2s)
+                setTimeout(() => {
+                    if (onComplete) onComplete();
+                }, 2200);
+            }, 300);
+        }, 2200);
     }
 
     function setAnimation(enabled) {
@@ -266,18 +283,30 @@
             return;
         }
 
+        const isFirstLoad = lastDisplayedMinute === null;
         lastDisplayedMinute = currentMinute;
 
-        container.classList.add('loading');
-
         const quote = getQuoteForTime(hour, minute);
-        renderQuote(quote);
-        updateDigitalTime();
 
-        // Remove loading state
-        setTimeout(() => {
-            container.classList.remove('loading');
-        }, 100);
+        if (isFirstLoad) {
+            // First load: just render content (tiles are already collapsed)
+            renderQuote(quote);
+            updateDigitalTime();
+        } else if (isAnimationEnabled()) {
+            // Minute change with animation: full swing-in/swing-out cycle
+            playPageTurn(
+                // Called when overlay covers the content - update quote here
+                () => {
+                    renderQuote(quote);
+                    updateDigitalTime();
+                },
+                null
+            );
+        } else {
+            // Animation disabled - just render
+            renderQuote(quote);
+            updateDigitalTime();
+        }
     }
 
     function scheduleNextUpdate() {
