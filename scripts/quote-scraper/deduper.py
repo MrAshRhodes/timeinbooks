@@ -1,6 +1,9 @@
 """Quote deduplication utilities."""
+import sys
 from typing import List, Dict, Set
 from difflib import SequenceMatcher
+
+from tqdm import tqdm
 
 from formatter import Quote
 
@@ -43,8 +46,9 @@ def dedupe_quotes(quotes: List[Quote | dict], threshold: float = 0.85) -> List[Q
 def dedupe_by_time(quotes_by_time: Dict[str, List]) -> Dict[str, List]:
     """Deduplicate quotes within each time slot."""
     result = {}
+    sys.stdout.flush()
 
-    for time_key, quotes in quotes_by_time.items():
+    for time_key, quotes in tqdm(quotes_by_time.items(), desc="Deduplicating", unit="slot"):
         result[time_key] = dedupe_quotes(quotes)
 
     return result
@@ -58,16 +62,23 @@ def find_duplicates_across_sources(
     """Find quotes in 'new' that are duplicates of 'existing'."""
     duplicate_texts = set()
 
-    for time_key, new_quotes in new.items():
-        existing_quotes = existing.get(time_key, [])
+    # Count total new quotes for progress bar
+    total_new = sum(len(quotes) for quotes in new.values())
+    sys.stdout.flush()
 
-        for new_quote in new_quotes:
-            new_text = get_quote_text(new_quote)
+    with tqdm(total=total_new, desc="Checking duplicates", unit="quote") as pbar:
+        for time_key, new_quotes in new.items():
+            existing_quotes = existing.get(time_key, [])
 
-            for existing_quote in existing_quotes:
-                existing_text = get_quote_text(existing_quote)
-                if similarity(new_text, existing_text) >= threshold:
-                    duplicate_texts.add(new_text)
-                    break
+            for new_quote in new_quotes:
+                new_text = get_quote_text(new_quote)
+
+                for existing_quote in existing_quotes:
+                    existing_text = get_quote_text(existing_quote)
+                    if similarity(new_text, existing_text) >= threshold:
+                        duplicate_texts.add(new_text)
+                        break
+
+                pbar.update(1)
 
     return duplicate_texts

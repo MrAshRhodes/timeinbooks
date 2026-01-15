@@ -1,6 +1,7 @@
 """Merge new quotes into existing quotes.js."""
 import re
 import json
+import sys
 from typing import Dict, List
 
 from tqdm import tqdm
@@ -67,6 +68,7 @@ def merge_quotes(
 
     # Count total quotes for progress bar
     total_quotes = sum(len(quotes) for quotes in new.values())
+    sys.stdout.flush()
 
     added_count = 0
     skipped_count = 0
