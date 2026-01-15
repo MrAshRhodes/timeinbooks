@@ -22,6 +22,9 @@ class SourceDocument:
 class BaseSource(ABC):
     """Abstract base class for quote sources."""
 
+    # Subclasses should set this to control how many NEW docs to process
+    max_items: int = 50
+
     @property
     @abstractmethod
     def name(self) -> str:
@@ -30,7 +33,7 @@ class BaseSource(ABC):
 
     @abstractmethod
     def get_documents(self) -> Generator[SourceDocument, None, None]:
-        """Yield documents to process."""
+        """Yield documents to process. Should be an infinite/paginated generator."""
         pass
 
     def extract_quotes(self, doc: SourceDocument) -> List[tuple]:
@@ -48,13 +51,13 @@ class BaseSource(ABC):
         return quotes
 
     def scrape(self, skip_processed: bool = True) -> Dict[str, List[Quote]]:
-        """Scrape all documents and return quotes by time."""
+        """Scrape documents until max_items NEW documents are processed."""
         quotes_by_time: Dict[str, List[Quote]] = {}
-        total_docs = 0
+        new_docs_processed = 0
         skipped_docs = 0
         total_quotes = 0
 
-        print(f"[{self.name}] Starting scrape...")
+        print(f"[{self.name}] Starting scrape (target: {self.max_items} new docs)...")
 
         for doc in self.get_documents():
             # Skip already processed documents
@@ -62,8 +65,8 @@ class BaseSource(ABC):
                 skipped_docs += 1
                 continue
 
-            total_docs += 1
-            print(f"[{self.name}] Processing: {doc.title[:50]}...")
+            new_docs_processed += 1
+            print(f"[{self.name}] Processing ({new_docs_processed}/{self.max_items}): {doc.title[:50]}...")
 
             quote_tuples = self.extract_quotes(doc)
             total_quotes += len(quote_tuples)
@@ -77,7 +80,11 @@ class BaseSource(ABC):
             # Mark as processed
             mark_processed(doc.source_id)
 
+            # Stop when we've processed enough NEW documents
+            if new_docs_processed >= self.max_items:
+                break
+
         if skipped_docs > 0:
             print(f"[{self.name}] Skipped {skipped_docs} already processed docs")
-        print(f"[{self.name}] Complete: {total_docs} docs, {total_quotes} quotes")
+        print(f"[{self.name}] Complete: {new_docs_processed} new docs, {total_quotes} quotes")
         return quotes_by_time

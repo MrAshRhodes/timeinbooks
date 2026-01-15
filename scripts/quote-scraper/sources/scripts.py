@@ -17,7 +17,7 @@ class ScriptSource(BaseSource):
 
     def __init__(self, script_names: Optional[List[str]] = None, max_scripts: int = 50):
         self.script_names = script_names
-        self.max_scripts = max_scripts
+        self.max_items = max_scripts  # Used by base class scrape loop
         self._available_scripts: List[str] = []
 
     @property
@@ -60,15 +60,11 @@ class ScriptSource(BaseSource):
             print(f"  Warning: Could not fetch script list: {e}")
             return []
 
-    def _get_script_names(self) -> List[str]:
-        """Get script names to process."""
-        if self.script_names:
-            return self.script_names[:self.max_scripts]
-
-        # Fetch all available scripts
+    def _fetch_scripts_paginated(self) -> Generator[str, None, None]:
+        """Generator that yields script names one at a time."""
         all_scripts = self._fetch_all_scripts()
-
-        return all_scripts[:self.max_scripts]
+        for script_name in all_scripts:
+            yield script_name
 
     def _get_script_text(self, script_name: str) -> Optional[str]:
         """Download script from IMSDb."""
@@ -109,10 +105,14 @@ class ScriptSource(BaseSource):
         return text.strip()
 
     def get_documents(self) -> Generator[SourceDocument, None, None]:
-        """Yield movie scripts."""
-        script_names = self._get_script_names()
+        """Yield movie scripts. Iterates through all available scripts."""
+        # Use provided script_names if given, otherwise fetch from IMSDb
+        if self.script_names:
+            script_source = iter(self.script_names)
+        else:
+            script_source = self._fetch_scripts_paginated()
 
-        for script_name in script_names:
+        for script_name in script_source:
             text = self._get_script_text(script_name)
             if not text:
                 continue

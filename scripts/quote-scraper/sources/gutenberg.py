@@ -2,7 +2,7 @@
 import os
 import re
 import json
-from typing import Generator, List, Optional, Dict
+from typing import Generator, List, Optional, Dict, Iterator
 
 import requests
 
@@ -27,28 +27,29 @@ class GutenbergSource(BaseSource):
 
     def __init__(self, book_ids: Optional[List[int]] = None, max_books: int = 50):
         self.book_ids = book_ids
-        self.max_books = max_books
+        self.max_items = max_books  # Used by base class scrape loop
         self._metadata_cache: Dict[int, dict] = {}
+        self._seen_ids: set = set()  # Track IDs we've already yielded
         os.makedirs(GUTENBERG_CACHE_DIR, exist_ok=True)
 
     @property
     def name(self) -> str:
         return "Gutenberg"
 
-    def _fetch_popular_books(self, count: int) -> List[int]:
-        """Fetch popular book IDs from Gutendex API."""
-        book_ids = []
+    def _fetch_books_paginated(self) -> Generator[int, None, None]:
+        """Generator that yields book IDs, fetching pages as needed."""
         page = 1
+        max_pages = 100  # Safety limit (~3200 books)
 
-        print(f"  Fetching top {count} books from Gutenberg catalog...")
+        print("  Fetching books from Gutenberg catalog...")
 
-        while len(book_ids) < count:
+        while page <= max_pages:
             try:
-                # Gutendex returns books sorted by popularity by default
                 url = f"{self.GUTENDEX_API}?page={page}&languages=en"
                 response = requests.get(url, timeout=30)
 
                 if response.status_code != 200:
+                    print(f"  Warning: API returned status {response.status_code}")
                     break
 
                 data = response.json()
@@ -59,7 +60,8 @@ class GutenbergSource(BaseSource):
 
                 for book in results:
                     book_id = book.get("id")
-                    if book_id and book_id not in book_ids:
+                    if book_id and book_id not in self._seen_ids:
+                        self._seen_ids.add(book_id)
                         # Cache metadata while we have it
                         authors = book.get("authors", [])
                         author = authors[0].get("name", "Unknown") if authors else "Unknown"
@@ -67,41 +69,23 @@ class GutenbergSource(BaseSource):
                             "title": book.get("title", f"Book {book_id}"),
                             "author": author
                         }
-                        book_ids.append(book_id)
+                        yield book_id
 
-                        if len(book_ids) >= count:
-                            break
+                # Check if there are more pages
+                if not data.get("next"):
+                    break
 
                 page += 1
 
-                # Safety limit
-                if page > 20:
-                    break
-
             except Exception as e:
-                print(f"  Warning: API error: {e}")
+                print(f"  Warning: API error on page {page}: {e}")
                 break
 
-        print(f"  Found {len(book_ids)} books from catalog")
-        return book_ids
-
-    def _get_book_ids(self) -> List[int]:
-        """Get book IDs to process."""
-        if self.book_ids:
-            return self.book_ids[:self.max_books]
-
-        # Try to fetch from API
-        ids = self._fetch_popular_books(self.max_books)
-
-        # Fall back to hardcoded if API fails
-        if len(ids) < self.max_books:
-            for fallback_id in FALLBACK_BOOK_IDS:
-                if fallback_id not in ids:
-                    ids.append(fallback_id)
-                if len(ids) >= self.max_books:
-                    break
-
-        return ids[:self.max_books]
+        # Fall back to hardcoded IDs if we run out
+        for fallback_id in FALLBACK_BOOK_IDS:
+            if fallback_id not in self._seen_ids:
+                self._seen_ids.add(fallback_id)
+                yield fallback_id
 
     def _get_book_text(self, book_id: int) -> Optional[str]:
         """Download or retrieve cached book text."""
@@ -197,10 +181,14 @@ class GutenbergSource(BaseSource):
         return text.strip()
 
     def get_documents(self) -> Generator[SourceDocument, None, None]:
-        """Yield documents from Gutenberg."""
-        book_ids = self._get_book_ids()
+        """Yield documents from Gutenberg. Fetches pages on-demand."""
+        # Use provided book_ids if given, otherwise fetch from API
+        if self.book_ids:
+            book_id_source = iter(self.book_ids)
+        else:
+            book_id_source = self._fetch_books_paginated()
 
-        for book_id in book_ids:
+        for book_id in book_id_source:
             raw_text = self._get_book_text(book_id)
             if not raw_text:
                 continue

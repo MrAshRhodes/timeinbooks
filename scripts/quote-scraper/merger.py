@@ -3,6 +3,8 @@ import re
 import json
 from typing import Dict, List
 
+from tqdm import tqdm
+
 from config import QUOTES_FILE, NEW_QUOTES_FILE
 from formatter import Quote, format_quotes_js
 from deduper import dedupe_by_time, find_duplicates_across_sources, get_quote_text
@@ -63,25 +65,35 @@ def merge_quotes(
         duplicates = find_duplicates_across_sources(existing, new)
         print(f"Found {len(duplicates)} duplicate quotes to skip")
 
+    # Count total quotes for progress bar
+    total_quotes = sum(len(quotes) for quotes in new.values())
+
     added_count = 0
-    for time_key, new_quotes in new.items():
-        if time_key not in merged:
-            merged[time_key] = []
+    skipped_count = 0
 
-        for quote in new_quotes:
-            quote_text = get_quote_text(quote)
+    with tqdm(total=total_quotes, desc="Merging quotes", unit="quote") as pbar:
+        for time_key, new_quotes in new.items():
+            if time_key not in merged:
+                merged[time_key] = []
 
-            if dedupe and quote_text in duplicates:
-                continue
+            for quote in new_quotes:
+                quote_text = get_quote_text(quote)
 
-            quote_dict = quote.to_dict() if isinstance(quote, Quote) else quote
-            merged[time_key].append(quote_dict)
-            added_count += 1
+                if dedupe and quote_text in duplicates:
+                    skipped_count += 1
+                    pbar.update(1)
+                    continue
 
-    print(f"Added {added_count} new quotes")
+                quote_dict = quote.to_dict() if isinstance(quote, Quote) else quote
+                merged[time_key].append(quote_dict)
+                added_count += 1
+                pbar.update(1)
+
+    print(f"Added {added_count} new quotes ({skipped_count} duplicates skipped)")
 
     # Final deduplication within time slots
     if dedupe:
+        print("Running final deduplication...")
         merged = dedupe_by_time(merged)
 
     return merged

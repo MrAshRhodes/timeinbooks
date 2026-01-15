@@ -3,3 +3,4 @@ beautifulsoup4>=4.12.0
 gutenbergpy>=0.3.5
 anthropic>=0.18.0
 python-dotenv>=1.0.0
+tqdm>=4.66.0
