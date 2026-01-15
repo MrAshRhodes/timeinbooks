@@ -48,8 +48,13 @@ def dedupe_by_time(quotes_by_time: Dict[str, List]) -> Dict[str, List]:
     result = {}
     sys.stdout.flush()
 
-    for time_key, quotes in tqdm(quotes_by_time.items(), desc="Deduplicating", unit="slot"):
-        result[time_key] = dedupe_quotes(quotes)
+    # Count total quotes for more accurate progress
+    total_quotes = sum(len(quotes) for quotes in quotes_by_time.values())
+
+    with tqdm(total=total_quotes, desc="Deduplicating", unit="quote") as pbar:
+        for time_key, quotes in quotes_by_time.items():
+            result[time_key] = dedupe_quotes(quotes)
+            pbar.update(len(quotes))
 
     return result
 
