@@ -18,6 +18,25 @@ FALLBACK_BOOK_IDS = [
     100, 1232, 76, 74, 1400, 55, 1080, 46, 5200, 1260,
 ]
 
+# Bible and religious text exclusions (for inclusivity)
+EXCLUDED_BOOK_IDS = {
+    10,     # King James Bible
+    30,     # Book of Mormon
+    8800,   # The Bible, Douay-Rheims
+    8,      # The Bible (American Standard Version)
+}
+
+EXCLUDED_TITLE_PATTERNS = [
+    "bible",
+    "king james",
+    "old testament",
+    "new testament",
+    "holy bible",
+    "book of mormon",
+    "quran",
+    "koran",
+]
+
 
 class GutenbergSource(BaseSource):
     """Scrape quotes from Project Gutenberg books."""
@@ -61,6 +80,19 @@ class GutenbergSource(BaseSource):
                 for book in results:
                     book_id = book.get("id")
                     if book_id and book_id not in self._seen_ids:
+                        # Check if book is in excluded list
+                        if book_id in EXCLUDED_BOOK_IDS:
+                            print(f"  Skipping excluded book ID {book_id}")
+                            self._seen_ids.add(book_id)
+                            continue
+
+                        # Check if title matches excluded patterns
+                        title = book.get("title", "").lower()
+                        if any(pattern in title for pattern in EXCLUDED_TITLE_PATTERNS):
+                            print(f"  Skipping Bible/religious text: {book.get('title', f'Book {book_id}')}")
+                            self._seen_ids.add(book_id)
+                            continue
+
                         self._seen_ids.add(book_id)
                         # Cache metadata while we have it
                         authors = book.get("authors", [])
@@ -84,6 +116,12 @@ class GutenbergSource(BaseSource):
         # Fall back to hardcoded IDs if we run out
         for fallback_id in FALLBACK_BOOK_IDS:
             if fallback_id not in self._seen_ids:
+                # Check if fallback book is in excluded list
+                if fallback_id in EXCLUDED_BOOK_IDS:
+                    print(f"  Skipping excluded fallback book ID {fallback_id}")
+                    self._seen_ids.add(fallback_id)
+                    continue
+
                 self._seen_ids.add(fallback_id)
                 yield fallback_id
 
