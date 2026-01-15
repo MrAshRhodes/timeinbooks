@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Cache
+.gutenberg_cache/
+
+# Output
+new_quotes.json
