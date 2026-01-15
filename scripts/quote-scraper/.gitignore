@@ -6,6 +6,7 @@ venv/
 
 # Cache
 .gutenberg_cache/
+processed.json
 
 # Output
 new_quotes.json

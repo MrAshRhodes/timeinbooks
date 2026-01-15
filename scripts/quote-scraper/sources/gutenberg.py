@@ -1,28 +1,107 @@
 """Project Gutenberg quote source."""
 import os
-from typing import Generator, List, Optional
+import re
+import json
+from typing import Generator, List, Optional, Dict
 
 import requests
 
 import sys
 sys.path.insert(0, '..')
-from config import GUTENBERG_CACHE_DIR, POPULAR_BOOK_IDS
+from config import GUTENBERG_CACHE_DIR
 from .base import BaseSource, SourceDocument
+
+
+# Fallback popular books if API fails
+FALLBACK_BOOK_IDS = [
+    1342, 84, 1661, 11, 98, 2701, 1952, 174, 345, 16328,
+    100, 1232, 76, 74, 1400, 55, 1080, 46, 5200, 1260,
+]
 
 
 class GutenbergSource(BaseSource):
     """Scrape quotes from Project Gutenberg books."""
 
     GUTENBERG_MIRROR = "https://www.gutenberg.org"
+    GUTENDEX_API = "https://gutendex.com/books"
 
     def __init__(self, book_ids: Optional[List[int]] = None, max_books: int = 50):
-        self.book_ids = book_ids or POPULAR_BOOK_IDS
+        self.book_ids = book_ids
         self.max_books = max_books
+        self._metadata_cache: Dict[int, dict] = {}
         os.makedirs(GUTENBERG_CACHE_DIR, exist_ok=True)
 
     @property
     def name(self) -> str:
         return "Gutenberg"
+
+    def _fetch_popular_books(self, count: int) -> List[int]:
+        """Fetch popular book IDs from Gutendex API."""
+        book_ids = []
+        page = 1
+
+        print(f"  Fetching top {count} books from Gutenberg catalog...")
+
+        while len(book_ids) < count:
+            try:
+                # Gutendex returns books sorted by popularity by default
+                url = f"{self.GUTENDEX_API}?page={page}&languages=en"
+                response = requests.get(url, timeout=30)
+
+                if response.status_code != 200:
+                    break
+
+                data = response.json()
+                results = data.get("results", [])
+
+                if not results:
+                    break
+
+                for book in results:
+                    book_id = book.get("id")
+                    if book_id and book_id not in book_ids:
+                        # Cache metadata while we have it
+                        authors = book.get("authors", [])
+                        author = authors[0].get("name", "Unknown") if authors else "Unknown"
+                        self._metadata_cache[book_id] = {
+                            "title": book.get("title", f"Book {book_id}"),
+                            "author": author
+                        }
+                        book_ids.append(book_id)
+
+                        if len(book_ids) >= count:
+                            break
+
+                page += 1
+
+                # Safety limit
+                if page > 20:
+                    break
+
+            except Exception as e:
+                print(f"  Warning: API error: {e}")
+                break
+
+        print(f"  Found {len(book_ids)} books from catalog")
+        return book_ids
+
+    def _get_book_ids(self) -> List[int]:
+        """Get book IDs to process."""
+        if self.book_ids:
+            return self.book_ids[:self.max_books]
+
+        # Try to fetch from API
+        ids = self._fetch_popular_books(self.max_books)
+
+        # Fall back to hardcoded if API fails
+        if len(ids) < self.max_books:
+            for fallback_id in FALLBACK_BOOK_IDS:
+                if fallback_id not in ids:
+                    ids.append(fallback_id)
+                if len(ids) >= self.max_books:
+                    break
+
+        return ids[:self.max_books]
 
     def _get_book_text(self, book_id: int) -> Optional[str]:
         """Download or retrieve cached book text."""
@@ -52,34 +131,37 @@ class GutenbergSource(BaseSource):
             except requests.RequestException:
                 continue
 
-        print(f"  Warning: Could not download book {book_id}")
         return None
 
-    def _get_book_metadata(self, book_id: int) -> dict:
-        """Get book metadata from Gutenberg API."""
-        # Simple fallback metadata
-        metadata = {
-            1342: {"title": "Pride and Prejudice", "author": "Jane Austen"},
-            84: {"title": "Frankenstein", "author": "Mary Shelley"},
-            1661: {"title": "The Adventures of Sherlock Holmes", "author": "Arthur Conan Doyle"},
-            11: {"title": "Alice's Adventures in Wonderland", "author": "Lewis Carroll"},
-            98: {"title": "A Tale of Two Cities", "author": "Charles Dickens"},
-            2701: {"title": "Moby Dick", "author": "Herman Melville"},
-            1952: {"title": "The Yellow Wallpaper", "author": "Charlotte Perkins Gilman"},
-            174: {"title": "The Picture of Dorian Gray", "author": "Oscar Wilde"},
-            345: {"title": "Dracula", "author": "Bram Stoker"},
-            16328: {"title": "Beowulf", "author": "Anonymous"},
-            100: {"title": "The Complete Works of Shakespeare", "author": "William Shakespeare"},
-            1232: {"title": "The Prince", "author": "Niccolò Machiavelli"},
-            76: {"title": "Adventures of Tom Sawyer", "author": "Mark Twain"},
-            74: {"title": "Adventures of Huckleberry Finn", "author": "Mark Twain"},
-            1400: {"title": "Great Expectations", "author": "Charles Dickens"},
-        }
+    def _extract_metadata_from_text(self, text: str, book_id: int) -> dict:
+        """Extract title and author from Gutenberg text header."""
+        title = f"Book {book_id}"
+        author = "Unknown"
 
-        if book_id in metadata:
-            return metadata[book_id]
+        # Look for title
+        title_match = re.search(r'Title:\s*(.+?)(?:\r?\n|$)', text[:2000])
+        if title_match:
+            title = title_match.group(1).strip()
 
-        # Try to extract from text header
+        # Look for author
+        author_match = re.search(r'Author:\s*(.+?)(?:\r?\n|$)', text[:2000])
+        if author_match:
+            author = author_match.group(1).strip()
+
+        return {"title": title, "author": author}
+
+    def _get_book_metadata(self, book_id: int, text: str = "") -> dict:
+        """Get book metadata from cache, API result, or text extraction."""
+        # Check cache first (populated during API fetch)
+        if book_id in self._metadata_cache:
+            return self._metadata_cache[book_id]
+
+        # Try to extract from text
+        if text:
+            metadata = self._extract_metadata_from_text(text, book_id)
+            self._metadata_cache[book_id] = metadata
+            return metadata
+
         return {"title": f"Book {book_id}", "author": "Unknown"}
 
     def _clean_gutenberg_text(self, text: str) -> str:
@@ -94,7 +176,6 @@ class GutenbergSource(BaseSource):
         for marker in start_markers:
             pos = text.find(marker)
             if pos != -1:
-                # Find end of line
                 newline = text.find('\n', pos)
                 if newline != -1:
                     text = text[newline + 1:]
@@ -117,13 +198,16 @@ class GutenbergSource(BaseSource):
 
     def get_documents(self) -> Generator[SourceDocument, None, None]:
         """Yield documents from Gutenberg."""
-        for i, book_id in enumerate(self.book_ids[:self.max_books]):
-            text = self._get_book_text(book_id)
-            if not text:
+        book_ids = self._get_book_ids()
+
+        for book_id in book_ids:
+            raw_text = self._get_book_text(book_id)
+            if not raw_text:
                 continue
 
-            text = self._clean_gutenberg_text(text)
-            metadata = self._get_book_metadata(book_id)
+            # Get metadata before cleaning (header contains metadata)
+            metadata = self._get_book_metadata(book_id, raw_text)
+            text = self._clean_gutenberg_text(raw_text)
 
             yield SourceDocument(
                 text=text,

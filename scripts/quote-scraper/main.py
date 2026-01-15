@@ -9,18 +9,19 @@ from sources import GutenbergSource, ScriptSource
 from formatter import Quote
 from merger import run_merge, save_new_quotes
 from deduper import dedupe_by_time
+from processed_cache import get_stats, clear_processed
 
 
-def scrape_gutenberg(max_books: int = 15) -> Dict[str, List[Quote]]:
+def scrape_gutenberg(max_books: int = 15, skip_processed: bool = True) -> Dict[str, List[Quote]]:
     """Scrape quotes from Project Gutenberg."""
     source = GutenbergSource(max_books=max_books)
-    return source.scrape()
+    return source.scrape(skip_processed=skip_processed)
 
 
-def scrape_scripts(max_scripts: int = 10) -> Dict[str, List[Quote]]:
+def scrape_scripts(max_scripts: int = 10, skip_processed: bool = True) -> Dict[str, List[Quote]]:
     """Scrape quotes from movie scripts."""
     source = ScriptSource(max_scripts=max_scripts)
-    return source.scrape()
+    return source.scrape(skip_processed=skip_processed)
 
 
 def merge_results(*results: Dict[str, List]) -> Dict[str, List]:
@@ -62,10 +63,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py --source gutenberg --max 5
-  python main.py --source scripts --max 10
+  python main.py --source gutenberg --max 50
+  python main.py --source scripts --max 100
   python main.py --source all --merge
-  python main.py --source gutenberg --dry-run
+  python main.py --source gutenberg --rescrape
+  python main.py --stats
         """
     )
 
@@ -78,7 +80,7 @@ Examples:
     parser.add_argument(
         '--max',
         type=int,
-        default=10,
+        default=50,
         help='Maximum items to scrape per source'
     )
     parser.add_argument(
@@ -96,20 +98,50 @@ Examples:
         type=str,
         help='Output JSON file for scraped quotes'
     )
+    parser.add_argument(
+        '--rescrape',
+        action='store_true',
+        help='Re-scrape sources even if already processed'
+    )
+    parser.add_argument(
+        '--stats',
+        action='store_true',
+        help='Show cache statistics and exit'
+    )
+    parser.add_argument(
+        '--clear-cache',
+        action='store_true',
+        help='Clear the processed cache'
+    )
 
     args = parser.parse_args()
 
+    # Handle cache commands
+    if args.stats:
+        stats = get_stats()
+        print(f"Processed Cache Statistics:")
+        print(f"  Total processed: {stats['total']}")
+        print(f"  Gutenberg books: {stats['gutenberg']}")
+        print(f"  Movie scripts:   {stats['scripts']}")
+        return
+
+    if args.clear_cache:
+        clear_processed()
+        print("Processed cache cleared.")
+        return
+
+    skip_processed = not args.rescrape
     all_quotes = {}
 
     # Run scrapers
     if args.source in ['gutenberg', 'all']:
         print("\n[Gutenberg] Starting...")
-        gutenberg_quotes = scrape_gutenberg(max_books=args.max)
+        gutenberg_quotes = scrape_gutenberg(max_books=args.max, skip_processed=skip_processed)
         all_quotes = merge_results(all_quotes, gutenberg_quotes)
 
     if args.source in ['scripts', 'all']:
         print("\n[Scripts] Starting...")
-        script_quotes = scrape_scripts(max_scripts=args.max)
+        script_quotes = scrape_scripts(max_scripts=args.max, skip_processed=skip_processed)
         all_quotes = merge_results(all_quotes, script_quotes)
 
     # Print stats

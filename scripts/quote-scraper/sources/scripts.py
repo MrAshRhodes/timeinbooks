@@ -15,37 +15,60 @@ class ScriptSource(BaseSource):
 
     IMSDB_BASE = "https://imsdb.com"
 
-    # Popular movies likely to have time references
-    POPULAR_SCRIPTS = [
-        "Back-to-the-Future",
-        "Groundhog-Day",
-        "12-Angry-Men",
-        "Casablanca",
-        "The-Breakfast-Club",
-        "Ferris-Buellers-Day-Off",
-        "When-Harry-Met-Sally",
-        "Before-Sunrise",
-        "Lost-in-Translation",
-        "Pulp-Fiction",
-        "The-Godfather",
-        "Goodfellas",
-        "Reservoir-Dogs",
-        "Die-Hard",
-        "Alien",
-        "The-Shining",
-        "Jaws",
-        "E-T-The-Extra-Terrestrial",
-        "Forrest-Gump",
-        "The-Matrix",
-    ]
-
-    def __init__(self, script_names: Optional[List[str]] = None, max_scripts: int = 20):
-        self.script_names = script_names or self.POPULAR_SCRIPTS
+    def __init__(self, script_names: Optional[List[str]] = None, max_scripts: int = 50):
+        self.script_names = script_names
         self.max_scripts = max_scripts
+        self._available_scripts: List[str] = []
 
     @property
     def name(self) -> str:
         return "Scripts"
+
+    def _fetch_all_scripts(self) -> List[str]:
+        """Fetch list of all available scripts from IMSDb."""
+        if self._available_scripts:
+            return self._available_scripts
+
+        print("  Fetching script list from IMSDb...")
+
+        try:
+            # IMSDb has an alphabetical listing
+            url = f"{self.IMSDB_BASE}/all-scripts.html"
+            response = requests.get(url, timeout=30)
+
+            if response.status_code != 200:
+                return []
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Find all script links
+            scripts = []
+            for link in soup.find_all('a', href=True):
+                href = link.get('href', '')
+                if '/Movie Scripts/' in href and href.endswith(' Script.html'):
+                    # Extract script name from URL
+                    name = href.replace('/Movie Scripts/', '').replace(' Script.html', '')
+                    name = name.replace(' ', '-')
+                    if name and name not in scripts:
+                        scripts.append(name)
+
+            print(f"  Found {len(scripts)} scripts available")
+            self._available_scripts = scripts
+            return scripts
+
+        except Exception as e:
+            print(f"  Warning: Could not fetch script list: {e}")
+            return []
+
+    def _get_script_names(self) -> List[str]:
+        """Get script names to process."""
+        if self.script_names:
+            return self.script_names[:self.max_scripts]
+
+        # Fetch all available scripts
+        all_scripts = self._fetch_all_scripts()
+
+        return all_scripts[:self.max_scripts]
 
     def _get_script_text(self, script_name: str) -> Optional[str]:
         """Download script from IMSDb."""
@@ -70,8 +93,7 @@ class ScriptSource(BaseSource):
 
             return None
 
-        except requests.RequestException as e:
-            print(f"  Warning: Could not download {script_name}: {e}")
+        except requests.RequestException:
             return None
 
     def _clean_script_name(self, name: str) -> str:
@@ -88,7 +110,9 @@ class ScriptSource(BaseSource):
 
     def get_documents(self) -> Generator[SourceDocument, None, None]:
         """Yield movie scripts."""
-        for script_name in self.script_names[:self.max_scripts]:
+        script_names = self._get_script_names()
+
+        for script_name in script_names:
             text = self._get_script_text(script_name)
             if not text:
                 continue
@@ -99,6 +123,6 @@ class ScriptSource(BaseSource):
             yield SourceDocument(
                 text=text,
                 title=title,
-                author="",  # Scripts don't have a single author
+                author="",
                 source_id=f"imsdb:{script_name}"
             )
