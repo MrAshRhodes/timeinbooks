@@ -24,37 +24,93 @@ if (!quotesMatch) {
 console.log('Parsing quotes object...');
 const QUOTES = eval('(' + quotesMatch[1] + ')');
 
-// Filter out Bible quotes
-console.log('Filtering out Bible quotes...');
+// Filter out Bible quotes and religious content
+console.log('Filtering out Bible quotes and religious content...');
 let totalQuotes = 0;
-let bibleQuotes = 0;
+let removedQuotes = 0;
 let remainingQuotes = 0;
+const removalReasons = {};
+
+// Religious keywords to search for in quote text
+const religiousKeywords = [
+    /\bBibles?\b/i, // Bible or Bibles
+    /\bJesus\b/i,
+    /\bChrist(?!mas|opher|y|ine|ina|ian\s+\w+(?!s\b))/i, // Christ but not Christmas, Christopher, Christy, Christine, Christina, Christian as name
+    /\bScriptures?\b/i,
+    /\bTestaments?\b/i, // Testament or Testaments
+    /\bPsalms?\b/i,
+    /\bGospels?\b/i,
+    /\bChristians?\b(?=\s|,|\.)/i, // Christians/Christian as religion (followed by space or punctuation)
+    /\bBethlehem\b/i,
+    /\bNativity\b/i,
+    /\bmiracles?\b.*\bwine\b/i, // Biblical miracle references
+    /\bprophets?\b/i,
+    /\bHoly Spirit\b/i,
+    /\bSavio[u]?r\b/i, // Savior or Saviour
+    /\bLord's day\b/i,
+    /\bchristened\b/i,
+    /\bchristening\b/i,
+    /\bMoses\b/i,
+    /\bPharisees?\b/i,
+    /\bApostles?\b/i,
+    /\bhymns?\b/i,
+    /\bsermons?\b/i
+];
+
+// Explicitly religious book titles to remove
+const religiousBooks = [
+    "The King James Version of the Bible",
+    "The Book of Christmas",
+    "Narrative of a Journey Round the Dead Sea and in the Bible Lands in 1850 and 1851",
+    "Jesus' Son"
+];
 
 const filtered = {};
 for (const [time, quotes] of Object.entries(QUOTES)) {
     totalQuotes += quotes.length;
 
-    const nonBibleQuotes = quotes.filter(q => {
-        const isBible = q.title === "The King James Version of the Bible";
-        if (isBible) {
-            bibleQuotes++;
+    const nonReligiousQuotes = quotes.filter(q => {
+        // Check if book title is explicitly religious
+        if (religiousBooks.includes(q.title)) {
+            removedQuotes++;
+            removalReasons[q.title] = (removalReasons[q.title] || 0) + 1;
+            return false;
         }
-        return !isBible;
+
+        // Check quote text for religious keywords
+        const fullQuote = `${q.quote_first} ${q.quote_time_case} ${q.quote_last}`.toLowerCase();
+        for (const keyword of religiousKeywords) {
+            if (keyword.test(fullQuote)) {
+                removedQuotes++;
+                const keywordName = keyword.source;
+                removalReasons[`Keyword: ${keywordName.substring(0, 30)}...`] = (removalReasons[`Keyword: ${keywordName.substring(0, 30)}...`] || 0) + 1;
+                return false;
+            }
+        }
+
+        return true;
     });
 
-    remainingQuotes += nonBibleQuotes.length;
+    remainingQuotes += nonReligiousQuotes.length;
 
     // Only keep time slots that still have quotes
-    if (nonBibleQuotes.length > 0) {
-        filtered[time] = nonBibleQuotes;
+    if (nonReligiousQuotes.length > 0) {
+        filtered[time] = nonReligiousQuotes;
     }
 }
 
 console.log('\nStatistics:');
 console.log(`Total quotes before: ${totalQuotes}`);
-console.log(`Bible quotes removed: ${bibleQuotes}`);
+console.log(`Religious quotes removed: ${removedQuotes}`);
 console.log(`Remaining quotes: ${remainingQuotes}`);
-console.log(`Percentage removed: ${((bibleQuotes / totalQuotes) * 100).toFixed(2)}%`);
+console.log(`Percentage removed: ${((removedQuotes / totalQuotes) * 100).toFixed(2)}%`);
+console.log('\nTop removal reasons:');
+const sortedReasons = Object.entries(removalReasons)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+sortedReasons.forEach(([reason, count]) => {
+    console.log(`  ${reason}: ${count}`);
+});
 
 // Generate new quotes.js file
 console.log('\nGenerating new quotes.js...');
