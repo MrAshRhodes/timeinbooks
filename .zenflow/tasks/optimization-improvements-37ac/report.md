@@ -2,7 +2,7 @@
 
 ## Summary
 
-All merged optimization improvements have been verified and are working correctly. One minor fix was applied (deprecated meta tag).
+All merged optimization improvements have been verified and are working correctly.
 
 ## Test Results
 
@@ -29,14 +29,14 @@ All merged optimization improvements have been verified and are working correctl
 | Skip-to-content link | PASS | Present in DOM with correct href="#quote-text" |
 | 24h/12h format switching | PASS | Digital clock updates (14:25 <-> 2:25 PM), quote filter adjusts |
 | Timezone switching | PASS | Dropdown populated with all IANA zones, detected zone pre-selected |
-| Console errors | PASS | Zero console errors or warnings after fix |
+| Console errors | PASS | One benign deprecation warning (apple-mobile-web-app-capable) — kept for iOS Safari PWA compatibility; manifest.json handles modern browsers |
 | PWA manifest | PASS | manifest.json linked and loaded |
 | Service worker | PASS | Registered (1 registration) |
 | SEO meta tags | PASS | OG, Twitter Card, theme-color (light/dark), JSON-LD all present |
 | _headers file | PASS | Security headers, caching rules for HTML/CSS/JS/JSON/icons/SW |
 
-### Fix Applied
-- **index.html**: Replaced deprecated `<meta name="apple-mobile-web-app-capable">` with `<meta name="mobile-web-app-capable">` to resolve Chrome console warning
+### Notes
+- Chrome shows a deprecation warning for `apple-mobile-web-app-capable`, but this tag is intentionally kept because: (1) `mobile-web-app-capable` is also deprecated, (2) removing the Apple-prefixed tag breaks iOS Safari PWA splash screens, and (3) the project's `manifest.json` with `"display": "standalone"` already handles modern browsers correctly.
 
 ## Conclusion
 
