@@ -42,7 +42,8 @@ Port the async quote chunk loading system from branch 22bd:
 - Update `.gitignore` to exclude `data/` (generated files)
 - Verify: serve locally, confirm quotes load and display correctly
 
-### [ ] Step: Frontend - Accessibility & PWA
+### [x] Step: Frontend - Accessibility & PWA
+<!-- chat-id: 4f17c777-d6c7-4a37-897f-925bc1916dcd -->
 
 Cherry-pick accessibility and PWA improvements from branch 74c3:
 - Add skip-to-content link (`<a href="#quote-text" class="skip-link">`) + CSS
@@ -101,6 +102,7 @@ Comprehensive verification of the merged result:
 - Run scraper tests: `pytest scripts/quote-scraper/tests/ -v`
 - Write completion report to `report.md`
 
-### [ ] Step: Push to main
+### [ ] Step: Push to Master
 
 IF all is working ok after the verification, merge and push all changes.
+confirm site is working at timeinbooks.com 
