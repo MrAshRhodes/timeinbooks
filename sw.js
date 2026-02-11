@@ -1,7 +1,7 @@
 // Literary Quote Clock - Service Worker
 // Cache core assets for offline use
 
-const CACHE_NAME = 'quote-clock-v2';
+const CACHE_NAME = 'quote-clock-v3';
 const CORE_ASSETS = [
   '/',
   '/index.html',
@@ -66,8 +66,12 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          // Only cache if response is actually JSON (not an HTML fallback)
+          const contentType = response.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
           return response;
         })
         .catch(() => caches.match(request))

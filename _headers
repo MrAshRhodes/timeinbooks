@@ -22,9 +22,9 @@
 /*.js
   Cache-Control: public, max-age=86400, must-revalidate
 
-# JSON quote data chunks - cache for 1 week (changes rarely, only on new scrapes)
+# JSON quote data chunks - cache for 1 day with revalidation
 /data/*.json
-  Cache-Control: public, max-age=604800, immutable
+  Cache-Control: public, max-age=86400, must-revalidate
 
 # Icons and images - long cache
 /favicon.ico
