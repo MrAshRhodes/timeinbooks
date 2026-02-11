@@ -58,7 +58,8 @@ Cherry-pick accessibility and PWA improvements from branch 74c3:
 - Add service worker registration to `index.html`
 - Verify: skip-link works, focus management works, PWA installable, animations smooth
 
-### [ ] Step: Frontend - SEO & Caching Headers
+### [x] Step: Frontend - SEO & Caching Headers
+<!-- chat-id: 284e8f1d-0259-4ef7-a79d-51dee515c131 -->
 
 Merge SEO metadata and caching from both branches:
 - Merge Open Graph tags (use 74c3's `og:image` and `og:url`)
