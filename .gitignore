@@ -15,9 +15,6 @@ Thumbs.db
 dist/
 build/
 
-# Generated quote chunks (built from quotes.js via scripts/split-quotes.js)
-data/
-
 # Python files
 *.pyc
 __pycache__/
