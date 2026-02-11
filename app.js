@@ -3,6 +3,9 @@
 (function() {
     'use strict';
 
+    // Cache-bust version (increment when quote data is regenerated)
+    var DATA_VERSION = 1;
+
     // Safe localStorage wrapper (handles private browsing, full storage, etc.)
     function storageGet(key) {
         try { return localStorage.getItem(key); } catch (e) { return null; }
@@ -77,7 +80,7 @@
         if (quotesCache[key]) return Promise.resolve();
         if (loadingHours[key]) return loadingHours[key];
 
-        const promise = fetch('data/quotes-' + key + '.json')
+        const promise = fetch('data/quotes-' + key + '.json?v=' + DATA_VERSION)
             .then(function(res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 return res.json();
