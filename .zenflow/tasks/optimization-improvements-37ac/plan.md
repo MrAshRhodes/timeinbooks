@@ -30,7 +30,8 @@ Key findings:
 
 ---
 
-### [ ] Step: Frontend - Chunk Loading System
+### [x] Step: Frontend - Chunk Loading System
+<!-- chat-id: 57bc3339-3d37-4259-8116-33b90a234d15 -->
 
 Port the async quote chunk loading system from branch 22bd:
 - Copy `scripts/split-quotes.js` build script
@@ -99,3 +100,7 @@ Comprehensive verification of the merged result:
   - [ ] Service worker registers
 - Run scraper tests: `pytest scripts/quote-scraper/tests/ -v`
 - Write completion report to `report.md`
+
+### [ ] Step: Push to main
+
+IF all is working ok after the verification, merge and push all changes.

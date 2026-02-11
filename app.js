@@ -19,22 +19,81 @@
     const formatToggle = document.getElementById('format-toggle');
     const loader = document.querySelector('.loader');
 
+    // Animation timing constants (milliseconds)
+    const TILE_TRANSITION_MS = 2200; // Time for loader tiles to expand/collapse
+    const COVERED_PAUSE_MS = 300;    // Pause while content is covered
+
+    // Quote data cache: hour string ("00"-"23") → quote object
+    const quotesCache = {};
+    const loadingHours = {}; // track in-flight fetches
+
     // State
     let currentTimezone = null;
     let lastDisplayedMinute = null;
     let overlay = null;
     let use24Hour = true;
+    let quotesReady = false;
+    let digitalTimeIntervalId = null;
+    let minuteIntervalId = null;
+    let alignmentTimeoutId = null;
 
     // Initialize
-    function init() {
+    async function init() {
         initTheme();
         initAnimation();
         initTimeFormat();
         initTimezone();
         initOverlay();
         bindEvents();
-        updateClock();
+        updateDigitalTime();
         scheduleNextUpdate();
+
+        // Load quotes for current hour, then display
+        const { hour } = getCurrentTime();
+        await loadHour(hour);
+        quotesReady = true;
+        container.classList.remove('loading');
+        updateClock();
+
+        // Preload next hour in background
+        preloadAdjacentHours(hour);
+    }
+
+    // Quote Loading
+    function hourKey(hour) {
+        return hour.toString().padStart(2, '0');
+    }
+
+    function loadHour(hour) {
+        const key = hourKey(hour);
+        if (quotesCache[key]) return Promise.resolve();
+        if (loadingHours[key]) return loadingHours[key];
+
+        const promise = fetch('data/quotes-' + key + '.json')
+            .then(function(res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .then(function(data) {
+                if (!data || typeof data !== 'object') {
+                    throw new Error('Invalid quote data for hour ' + key);
+                }
+                quotesCache[key] = data;
+                delete loadingHours[key];
+            })
+            .catch(function(err) {
+                console.error('Failed to load quotes for hour ' + key, err);
+                quotesCache[key] = {}; // Store empty object so we don't retry endlessly
+                delete loadingHours[key];
+            });
+
+        loadingHours[key] = promise;
+        return promise;
+    }
+
+    function preloadAdjacentHours(hour) {
+        var next = (hour + 1) % 24;
+        loadHour(next);
     }
 
     // Theme Management
@@ -63,7 +122,7 @@
         localStorage.setItem('quote-clock-theme', newTheme);
     }
 
-    // Page Animation using GSAP
+    // Page Animation
     function initAnimation() {
         const animationEnabled = localStorage.getItem('quote-clock-animation') !== 'false';
         animationToggle.checked = animationEnabled;
@@ -78,7 +137,7 @@
         // Activate loader - tiles expand from left with stagger
         loader.classList.add('loader--active');
 
-        // Wait for tiles to fully cover screen (~2s)
+        // Wait for tiles to fully cover screen
         setTimeout(() => {
             // Content is now covered - update it
             if (onCovered) onCovered();
@@ -88,12 +147,12 @@
                 // Remove active class - tiles collapse with stagger
                 loader.classList.remove('loader--active');
 
-                // Wait for tiles to fully collapse (~2s)
+                // Wait for tiles to fully collapse
                 setTimeout(() => {
                     if (onComplete) onComplete();
-                }, 2200);
-            }, 300);
-        }, 2200);
+                }, TILE_TRANSITION_MS);
+            }, COVERED_PAUSE_MS);
+        }, TILE_TRANSITION_MS);
     }
 
     function setAnimation(enabled) {
@@ -128,6 +187,7 @@
     function populateTimezones() {
         const timezones = Intl.supportedValuesOf('timeZone');
         const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const fragment = document.createDocumentFragment();
 
         timezones.forEach(tz => {
             const option = document.createElement('option');
@@ -136,8 +196,10 @@
             if (tz === detectedTimezone) {
                 option.textContent += ' (detected)';
             }
-            timezoneSelect.appendChild(option);
+            fragment.appendChild(option);
         });
+
+        timezoneSelect.appendChild(fragment);
     }
 
     function setTimezone(tz) {
@@ -166,11 +228,21 @@
     function openSettings() {
         settingsPanel.classList.add('open');
         overlay.classList.add('open');
+        // Start updating digital clock every second while settings are visible
+        updateDigitalTime();
+        if (!digitalTimeIntervalId) {
+            digitalTimeIntervalId = setInterval(updateDigitalTime, 1000);
+        }
     }
 
     function closeSettings() {
         settingsPanel.classList.remove('open');
         overlay.classList.remove('open');
+        // Stop the per-second digital clock updates when settings are hidden
+        if (digitalTimeIntervalId) {
+            clearInterval(digitalTimeIntervalId);
+            digitalTimeIntervalId = null;
+        }
     }
 
     // Clock Logic
@@ -209,8 +281,12 @@
     }
 
     function getQuoteForTime(hour, minute) {
+        const hKey = hourKey(hour);
+        const hourData = quotesCache[hKey];
+        if (!hourData) return null;
+
         const timeKey = formatTimeKey(hour, minute);
-        const quotes = QUOTES[timeKey];
+        const quotes = hourData[timeKey];
 
         if (!quotes || quotes.length === 0) {
             return null;
@@ -274,6 +350,11 @@
     }
 
     function updateClock() {
+        if (!quotesReady) {
+            updateDigitalTime();
+            return;
+        }
+
         const { hour, minute } = getCurrentTime();
         const currentMinute = hour * 60 + minute;
 
@@ -285,6 +366,24 @@
 
         const isFirstLoad = lastDisplayedMinute === null;
         lastDisplayedMinute = currentMinute;
+
+        // Ensure this hour's data is loaded (handles hour transitions)
+        const hKey = hourKey(hour);
+        if (!quotesCache[hKey]) {
+            container.classList.add('loading');
+            loadHour(hour).then(function() {
+                container.classList.remove('loading');
+                lastDisplayedMinute = null; // force re-render
+                updateClock();
+                preloadAdjacentHours(hour);
+            });
+            return;
+        }
+
+        // Preload next hour when we're in the last 5 minutes
+        if (minute >= 55) {
+            preloadAdjacentHours(hour);
+        }
 
         const quote = getQuoteForTime(hour, minute);
 
@@ -310,18 +409,26 @@
     }
 
     function scheduleNextUpdate() {
+        // Clear any existing timers to prevent stacking
+        if (alignmentTimeoutId) {
+            clearTimeout(alignmentTimeoutId);
+            alignmentTimeoutId = null;
+        }
+        if (minuteIntervalId) {
+            clearInterval(minuteIntervalId);
+            minuteIntervalId = null;
+        }
+
         // Calculate milliseconds until next minute
         const now = new Date();
         const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
 
-        setTimeout(() => {
+        alignmentTimeoutId = setTimeout(() => {
+            alignmentTimeoutId = null;
             updateClock();
             // After first alignment, update every minute
-            setInterval(updateClock, 60000);
+            minuteIntervalId = setInterval(updateClock, 60000);
         }, msUntilNextMinute);
-
-        // Also update digital time every second
-        setInterval(updateDigitalTime, 1000);
     }
 
     // Event Bindings
@@ -346,6 +453,33 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && settingsPanel.classList.contains('open')) {
                 closeSettings();
+            }
+        });
+
+        // Pause updates when tab is hidden to save resources
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (alignmentTimeoutId) {
+                    clearTimeout(alignmentTimeoutId);
+                    alignmentTimeoutId = null;
+                }
+                if (minuteIntervalId) {
+                    clearInterval(minuteIntervalId);
+                    minuteIntervalId = null;
+                }
+                if (digitalTimeIntervalId) {
+                    clearInterval(digitalTimeIntervalId);
+                    digitalTimeIntervalId = null;
+                }
+            } else {
+                // Tab is visible again — update immediately and reschedule
+                updateClock();
+                scheduleNextUpdate();
+                // Restart digital clock interval if settings panel is open
+                if (settingsPanel.classList.contains('open') && !digitalTimeIntervalId) {
+                    updateDigitalTime();
+                    digitalTimeIntervalId = setInterval(updateDigitalTime, 1000);
+                }
             }
         });
     }

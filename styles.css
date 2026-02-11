@@ -279,10 +279,26 @@ body {
     pointer-events: auto;
 }
 
-/* Loading state */
+/* Loading state - show digital clock fallback while quotes load */
 .loading .quote-text,
 .loading .attribution {
-    opacity: 0.5;
+    opacity: 0;
+}
+
+.loading .quote-container::after {
+    content: '';
+    display: block;
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--text-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 1rem auto 0;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 /* Loader Transition - Staggered Horizontal Tiles */
@@ -340,6 +356,26 @@ body {
     height: 1.25rem;
     cursor: pointer;
     accent-color: var(--accent-color);
+}
+
+/* Focus styles for keyboard navigation */
+.icon-btn:focus-visible,
+.settings-content select:focus-visible,
+.setting-row input[type="checkbox"]:focus-visible,
+.footer a:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }
 
 /* Responsive adjustments */
