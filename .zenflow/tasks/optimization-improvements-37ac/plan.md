@@ -99,7 +99,7 @@ Comprehensive verification of the merged result:
   - [x] Settings panel open/close with focus management
   - [x] Skip-to-content link works
   - [x] Timezone and format switching works
-  - [x] No console errors
+  - [x] No console errors (one benign deprecation warning for apple-mobile-web-app-capable — kept for iOS Safari PWA compatibility)
   - [x] PWA manifest loads
   - [x] Service worker registers
 - Run scraper tests: `pytest scripts/quote-scraper/tests/ -v`
