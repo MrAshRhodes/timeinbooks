@@ -8,9 +8,18 @@
             name="description"
             content="A clock that tells time through literary quotes"
         />
+        <!-- Favicons -->
+        <link rel="icon" href="/favicon.ico" sizes="48x48" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+
         <link rel="stylesheet" href="styles.css" />
     </head>
     <body>
+        <a href="#quote-text" class="skip-link">Skip to content</a>
         <!-- Transition loader with staggered tiles -->
         <div class="loader">
             <div class="loader__tile"></div>
@@ -50,9 +59,9 @@
                 </cite>
             </main>
 
-            <aside id="settings-panel" class="settings-panel" hidden>
+            <aside id="settings-panel" class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-heading" tabindex="-1" hidden>
                 <div class="settings-content">
-                    <h2>Settings</h2>
+                    <h2 id="settings-heading">Settings</h2>
                     <div class="setting-row">
                         <label for="animation-toggle">Page animation</label>
                         <input type="checkbox" id="animation-toggle" checked />
@@ -83,5 +92,10 @@
         </div>
 
         <script src="app.js"></script>
+        <script>
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js');
+            }
+        </script>
     </body>
 </html>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <circle cx="256" cy="256" r="240" fill="#f4f1ea" stroke="#3d3630" stroke-width="24"/>
+  <!-- Hour markers -->
+  <line x1="256" y1="40" x2="256" y2="80" stroke="#3d3630" stroke-width="12" stroke-linecap="round"/>
+  <line x1="472" y1="256" x2="432" y2="256" stroke="#3d3630" stroke-width="12" stroke-linecap="round"/>
+  <line x1="256" y1="472" x2="256" y2="432" stroke="#3d3630" stroke-width="12" stroke-linecap="round"/>
+  <line x1="40" y1="256" x2="80" y2="256" stroke="#3d3630" stroke-width="12" stroke-linecap="round"/>
+  <!-- Hour hand (pointing ~10 o'clock) -->
+  <line x1="256" y1="256" x2="180" y2="140" stroke="#3d3630" stroke-width="16" stroke-linecap="round"/>
+  <!-- Minute hand (pointing ~10 past) -->
+  <line x1="256" y1="256" x2="310" y2="120" stroke="#3d3630" stroke-width="10" stroke-linecap="round"/>
+  <!-- Center dot -->
+  <circle cx="256" cy="256" r="14" fill="#3d3630"/>
+</svg>

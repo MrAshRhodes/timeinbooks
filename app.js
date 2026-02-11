@@ -3,6 +3,14 @@
 (function() {
     'use strict';
 
+    // Safe localStorage wrapper (handles private browsing, full storage, etc.)
+    function storageGet(key) {
+        try { return localStorage.getItem(key); } catch (e) { return null; }
+    }
+    function storageSet(key, value) {
+        try { localStorage.setItem(key, value); } catch (e) { /* silently ignore */ }
+    }
+
     // DOM Elements
     const quoteFirst = document.getElementById('quote-first');
     const quoteTime = document.getElementById('quote-time');
@@ -98,7 +106,7 @@
 
     // Theme Management
     function initTheme() {
-        const savedTheme = localStorage.getItem('quote-clock-theme');
+        const savedTheme = storageGet('quote-clock-theme');
         if (savedTheme) {
             document.documentElement.setAttribute('data-theme', savedTheme);
         }
@@ -119,18 +127,18 @@
         }
 
         document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('quote-clock-theme', newTheme);
+        storageSet('quote-clock-theme', newTheme);
     }
 
     // Page Animation
     function initAnimation() {
-        const animationEnabled = localStorage.getItem('quote-clock-animation') !== 'false';
+        const animationEnabled = storageGet('quote-clock-animation') !== 'false';
         animationToggle.checked = animationEnabled;
         // Loader tiles start collapsed (width: 0 via CSS), no setup needed
     }
 
     function isAnimationEnabled() {
-        return localStorage.getItem('quote-clock-animation') !== 'false';
+        return storageGet('quote-clock-animation') !== 'false';
     }
 
     function playPageTurn(onCovered, onComplete) {
@@ -156,19 +164,19 @@
     }
 
     function setAnimation(enabled) {
-        localStorage.setItem('quote-clock-animation', enabled);
+        storageSet('quote-clock-animation', enabled);
     }
 
     // Time Format
     function initTimeFormat() {
-        const saved = localStorage.getItem('quote-clock-24hour');
+        const saved = storageGet('quote-clock-24hour');
         use24Hour = saved !== 'false';
         formatToggle.checked = use24Hour;
     }
 
     function setTimeFormat(is24Hour) {
         use24Hour = is24Hour;
-        localStorage.setItem('quote-clock-24hour', is24Hour);
+        storageSet('quote-clock-24hour', is24Hour);
         lastDisplayedMinute = null; // Force quote refresh
         updateClock();
     }
@@ -177,7 +185,7 @@
     function initTimezone() {
         populateTimezones();
 
-        const savedTimezone = localStorage.getItem('quote-clock-timezone');
+        const savedTimezone = storageGet('quote-clock-timezone');
         const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
         currentTimezone = savedTimezone || detectedTimezone;
@@ -204,7 +212,7 @@
 
     function setTimezone(tz) {
         currentTimezone = tz;
-        localStorage.setItem('quote-clock-timezone', tz);
+        storageSet('quote-clock-timezone', tz);
         lastDisplayedMinute = null; // Force update
         updateClock();
     }
@@ -228,6 +236,9 @@
     function openSettings() {
         settingsPanel.classList.add('open');
         overlay.classList.add('open');
+        settingsPanel.removeAttribute('hidden');
+        // Move focus into the panel for screen readers
+        settingsPanel.focus();
         // Start updating digital clock every second while settings are visible
         updateDigitalTime();
         if (!digitalTimeIntervalId) {
@@ -238,6 +249,8 @@
     function closeSettings() {
         settingsPanel.classList.remove('open');
         overlay.classList.remove('open');
+        // Return focus to the settings toggle button
+        settingsToggle.focus();
         // Stop the per-second digital clock updates when settings are hidden
         if (digitalTimeIntervalId) {
             clearInterval(digitalTimeIntervalId);
