@@ -85,22 +85,23 @@ Merge scraper optimizations from both branches:
 - Verify: `pytest scripts/quote-scraper/tests/ -v` passes all tests
 - Verify: `python main.py --source gutenberg --max 3` completes successfully
 
-### [ ] Step: Final Verification & Formatting Review
+### [x] Step: Final Verification & Formatting Review
+<!-- chat-id: aeeda632-358d-4c30-bafe-84b8d0be6776 -->
 
 Comprehensive verification of the merged result:
 - Run `node scripts/split-quotes.js` to regenerate chunks
 - Serve locally with `python3 -m http.server` and test in Chrome via DevTools MCP:
-  - [ ] Quotes load and display correctly
-  - [ ] Time formatting is well-spaced within quote text
-  - [ ] Quote-to-attribution spacing is balanced
-  - [ ] Page turn animation works smoothly (GPU composited)
-  - [ ] Theme toggle (light/dark) works
-  - [ ] Settings panel open/close with focus management
-  - [ ] Skip-to-content link works
-  - [ ] Timezone and format switching works
-  - [ ] No console errors
-  - [ ] PWA manifest loads
-  - [ ] Service worker registers
+  - [x] Quotes load and display correctly
+  - [x] Time formatting is well-spaced within quote text
+  - [x] Quote-to-attribution spacing is balanced
+  - [x] Page turn animation works smoothly (GPU composited)
+  - [x] Theme toggle (light/dark) works
+  - [x] Settings panel open/close with focus management
+  - [x] Skip-to-content link works
+  - [x] Timezone and format switching works
+  - [x] No console errors
+  - [x] PWA manifest loads
+  - [x] Service worker registers
 - Run scraper tests: `pytest scripts/quote-scraper/tests/ -v`
 - Write completion report to `report.md`
 
