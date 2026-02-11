@@ -25,3 +25,8 @@ __pycache__/
 # Python virtual environment
 venv/
 .venv
+
+# Scraper cache directories
+scripts/quote-scraper/.gutenberg_cache/
+scripts/quote-scraper/.imsdb_cache/
+scripts/quote-scraper/processed.json

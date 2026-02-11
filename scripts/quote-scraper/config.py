@@ -37,3 +37,9 @@ POPULAR_BOOK_IDS = [
     74,     # Adventures of Huckleberry Finn
     1400,   # Great Expectations
 ]
+
+# Network settings
+REQUEST_DELAY_SECONDS = 0.5  # Delay between requests to be polite to servers
+MAX_WORKERS = 5              # Number of parallel download threads
+MAX_RETRIES = 3              # Number of retries for failed requests
+RETRY_BACKOFF_FACTOR = 1.0   # Exponential backoff factor for retries

@@ -1,13 +1,40 @@
 """Movie and TV script quote source."""
+import json
+import os
 import re
-from typing import Generator, List, Optional
+from typing import Generator, List, Optional, Tuple
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 
 import sys
 sys.path.insert(0, '..')
+from config import (
+    REQUEST_DELAY_SECONDS, MAX_WORKERS,
+    MAX_RETRIES, RETRY_BACKOFF_FACTOR,
+)
 from .base import BaseSource, SourceDocument
+
+# Disk cache directory for IMSDb data
+IMSDB_CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".imsdb_cache")
+IMSDB_LIST_CACHE = os.path.join(IMSDB_CACHE_DIR, "_script_list.json")
+
+
+def _create_session() -> requests.Session:
+    """Create a requests session with retry logic."""
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=MAX_RETRIES,
+        backoff_factor=RETRY_BACKOFF_FACTOR,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
 
 
 class ScriptSource(BaseSource):
@@ -19,22 +46,36 @@ class ScriptSource(BaseSource):
         self.script_names = script_names
         self.max_items = max_scripts  # Used by base class scrape loop
         self._available_scripts: List[str] = []
+        self._session = _create_session()
+        os.makedirs(IMSDB_CACHE_DIR, exist_ok=True)
 
     @property
     def name(self) -> str:
         return "Scripts"
 
     def _fetch_all_scripts(self) -> List[str]:
-        """Fetch list of all available scripts from IMSDb."""
+        """Fetch list of all available scripts from IMSDb (with disk cache)."""
         if self._available_scripts:
             return self._available_scripts
+
+        # Check disk cache first
+        if os.path.exists(IMSDB_LIST_CACHE):
+            try:
+                with open(IMSDB_LIST_CACHE, 'r') as f:
+                    scripts = json.load(f)
+                if scripts:
+                    print(f"  Loaded {len(scripts)} scripts from cache")
+                    self._available_scripts = scripts
+                    return scripts
+            except (json.JSONDecodeError, IOError):
+                pass
 
         print("  Fetching script list from IMSDb...")
 
         try:
             # IMSDb has an alphabetical listing
             url = f"{self.IMSDB_BASE}/all-scripts.html"
-            response = requests.get(url, timeout=30)
+            response = self._session.get(url, timeout=30)
 
             if response.status_code != 200:
                 return []
@@ -54,6 +95,11 @@ class ScriptSource(BaseSource):
 
             print(f"  Found {len(scripts)} scripts available")
             self._available_scripts = scripts
+
+            # Cache to disk
+            with open(IMSDB_LIST_CACHE, 'w') as f:
+                json.dump(scripts, f)
+
             return scripts
 
         except Exception as e:
@@ -67,11 +113,17 @@ class ScriptSource(BaseSource):
             yield script_name
 
     def _get_script_text(self, script_name: str) -> Optional[str]:
-        """Download script from IMSDb."""
+        """Download script from IMSDb (with disk cache)."""
+        # Check disk cache first
+        cache_path = os.path.join(IMSDB_CACHE_DIR, f"{script_name}.txt")
+        if os.path.exists(cache_path):
+            with open(cache_path, 'r', encoding='utf-8', errors='ignore') as f:
+                return f.read()
+
         url = f"{self.IMSDB_BASE}/scripts/{script_name}.html"
 
         try:
-            response = requests.get(url, timeout=30)
+            response = self._session.get(url, timeout=30)
             if response.status_code != 200:
                 return None
 
@@ -80,14 +132,20 @@ class ScriptSource(BaseSource):
             # Find the script content (usually in <pre> tags)
             pre_tags = soup.find_all('pre')
             if pre_tags:
-                return pre_tags[0].get_text()
+                text = pre_tags[0].get_text()
+            else:
+                # Alternative: look for scrtext class
+                scrtext = soup.find(class_='scrtext')
+                if scrtext:
+                    text = scrtext.get_text()
+                else:
+                    return None
 
-            # Alternative: look for scrtext class
-            scrtext = soup.find(class_='scrtext')
-            if scrtext:
-                return scrtext.get_text()
+            # Cache to disk
+            with open(cache_path, 'w', encoding='utf-8') as f:
+                f.write(text)
 
-            return None
+            return text
 
         except requests.RequestException:
             return None
@@ -126,3 +184,30 @@ class ScriptSource(BaseSource):
                 author="",
                 source_id=f"imsdb:{script_name}"
             )
+
+    def get_candidate_ids(self) -> Generator[Tuple[str, dict], None, None]:
+        """Yield (source_id, metadata) for available IMSDb scripts."""
+        if self.script_names:
+            script_source = iter(self.script_names)
+        else:
+            script_source = self._fetch_scripts_paginated()
+
+        for script_name in script_source:
+            yield (f"imsdb:{script_name}", {"script_name": script_name})
+
+    def fetch_document(self, source_id: str, metadata: dict) -> Optional[SourceDocument]:
+        """Download a single script by name."""
+        script_name = metadata["script_name"]
+        text = self._get_script_text(script_name)
+        if not text:
+            return None
+
+        text = self._clean_script_text(text)
+        title = self._clean_script_name(script_name)
+
+        return SourceDocument(
+            text=text,
+            title=title,
+            author="",
+            source_id=source_id
+        )

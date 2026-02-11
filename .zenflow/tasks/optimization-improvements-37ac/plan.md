@@ -71,7 +71,8 @@ Merge SEO metadata and caching from both branches:
 - Fix meta description quote count to "45,000" (74c3 incorrectly says 70,000)
 - Verify: meta tags present, _headers correct, favicon loads
 
-### [ ] Step: Scraper Improvements
+### [x] Step: Scraper Improvements
+<!-- chat-id: a746edab-1cdd-4f8f-9532-bccf45fc465f -->
 
 Merge scraper optimizations from both branches:
 - Port `rapidfuzz` from 74c3 into deduper.py (replace difflib SequenceMatcher)

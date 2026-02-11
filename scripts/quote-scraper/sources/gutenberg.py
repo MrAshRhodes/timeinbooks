@@ -1,14 +1,20 @@
 """Project Gutenberg quote source."""
 import os
 import re
+import time
 import json
-from typing import Generator, List, Optional, Dict, Iterator
+from typing import Generator, List, Optional, Dict, Iterator, Tuple
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 import sys
 sys.path.insert(0, '..')
-from config import GUTENBERG_CACHE_DIR
+from config import (
+    GUTENBERG_CACHE_DIR, REQUEST_DELAY_SECONDS, MAX_WORKERS,
+    MAX_RETRIES, RETRY_BACKOFF_FACTOR,
+)
 from .base import BaseSource, SourceDocument
 
 
@@ -38,6 +44,21 @@ EXCLUDED_TITLE_PATTERNS = [
 ]
 
 
+def _create_session() -> requests.Session:
+    """Create a requests session with retry logic."""
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=MAX_RETRIES,
+        backoff_factor=RETRY_BACKOFF_FACTOR,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
+
+
 class GutenbergSource(BaseSource):
     """Scrape quotes from Project Gutenberg books."""
 
@@ -49,6 +70,7 @@ class GutenbergSource(BaseSource):
         self.max_items = max_books  # Used by base class scrape loop
         self._metadata_cache: Dict[int, dict] = {}
         self._seen_ids: set = set()  # Track IDs we've already yielded
+        self._session = _create_session()
         os.makedirs(GUTENBERG_CACHE_DIR, exist_ok=True)
 
     @property
@@ -65,7 +87,7 @@ class GutenbergSource(BaseSource):
         while page <= max_pages:
             try:
                 url = f"{self.GUTENDEX_API}?page={page}&languages=en"
-                response = requests.get(url, timeout=30)
+                response = self._session.get(url, timeout=30)
 
                 if response.status_code != 200:
                     print(f"  Warning: API returned status {response.status_code}")
@@ -108,6 +130,7 @@ class GutenbergSource(BaseSource):
                     break
 
                 page += 1
+                time.sleep(REQUEST_DELAY_SECONDS)
 
             except Exception as e:
                 print(f"  Warning: API error on page {page}: {e}")
@@ -143,7 +166,7 @@ class GutenbergSource(BaseSource):
 
         for url in urls:
             try:
-                response = requests.get(url, timeout=30)
+                response = self._session.get(url, timeout=30)
                 if response.status_code == 200:
                     text = response.text
                     # Cache it
@@ -241,3 +264,30 @@ class GutenbergSource(BaseSource):
                 author=metadata["author"],
                 source_id=f"gutenberg:{book_id}"
             )
+
+    def get_candidate_ids(self) -> Generator[Tuple[str, dict], None, None]:
+        """Yield (source_id, metadata) for available Gutenberg books."""
+        if self.book_ids:
+            book_id_source = iter(self.book_ids)
+        else:
+            book_id_source = self._fetch_books_paginated()
+
+        for book_id in book_id_source:
+            yield (f"gutenberg:{book_id}", {"book_id": book_id})
+
+    def fetch_document(self, source_id: str, metadata: dict) -> Optional[SourceDocument]:
+        """Download a single Gutenberg book by ID."""
+        book_id = metadata["book_id"]
+        raw_text = self._get_book_text(book_id)
+        if not raw_text:
+            return None
+
+        book_meta = self._get_book_metadata(book_id, raw_text)
+        text = self._clean_gutenberg_text(raw_text)
+
+        return SourceDocument(
+            text=text,
+            title=book_meta["title"],
+            author=book_meta["author"],
+            source_id=source_id
+        )
