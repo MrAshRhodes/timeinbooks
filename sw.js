@@ -1,7 +1,7 @@
 // Literary Quote Clock - Service Worker
 // Cache core assets for offline use
 
-const CACHE_NAME = 'quote-clock-v3';
+const CACHE_NAME = 'quote-clock-v4';
 const CORE_ASSETS = [
   '/',
   '/index.html',
@@ -74,7 +74,7 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match(request))
+        .catch(() => caches.match(request, { ignoreSearch: true }))
     );
     return;
   }
