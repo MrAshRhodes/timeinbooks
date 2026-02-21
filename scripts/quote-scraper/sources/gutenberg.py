@@ -8,6 +8,8 @@ from typing import Generator, List, Optional, Dict, Iterator, Tuple
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 import sys
 sys.path.insert(0, '..')
@@ -44,9 +46,10 @@ EXCLUDED_TITLE_PATTERNS = [
 ]
 
 
-def _create_session() -> requests.Session:
+def _create_session(verify_ssl: bool = True) -> requests.Session:
     """Create a requests session with retry logic."""
     session = requests.Session()
+    session.verify = verify_ssl
     retry_strategy = Retry(
         total=MAX_RETRIES,
         backoff_factor=RETRY_BACKOFF_FACTOR,
@@ -70,7 +73,7 @@ class GutenbergSource(BaseSource):
         self.max_items = max_books  # Used by base class scrape loop
         self._metadata_cache: Dict[int, dict] = {}
         self._seen_ids: set = set()  # Track IDs we've already yielded
-        self._session = _create_session()
+        self._session = _create_session(verify_ssl=False)
         os.makedirs(GUTENBERG_CACHE_DIR, exist_ok=True)
 
     @property
